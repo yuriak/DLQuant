@@ -16,11 +16,14 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(dict_size, emb_size, _weight=emb_matrix)
-        self.gru = nn.GRU(emb_size, hidden_size, batch_first=True)
+        self.fc_1 = nn.Linear(emb_size, hidden_size)
+        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.relu = nn.ReLU()
     
     def forward(self, x, hidden):
         embedded = self.embedding(x)
         output = embedded
+        output = self.relu(self.fc_1(output))
         output, hidden = self.gru(output, hidden)
         return output, hidden
 
@@ -30,15 +33,16 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.hidden_size = hidden_size
         self.embedding = nn.Embedding(dict_size, emb_size, _weight=emb_matrix)
-        self.gru = nn.GRU(emb_size, hidden_size, batch_first=True)
+        self.fc_1 = nn.Linear(emb_size, hidden_size)
+        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, dict_size)
         self.softmax = nn.LogSoftmax(dim=-1)
     
     def forward(self, x, hidden):
         output = self.embedding(x)
-        output = F.relu(output)
+        output = F.relu(self.fc_1(output))
         output, hidden = self.gru(output, hidden)
-        output = self.softmax(self.out(output))
+        output = self.softmax(F.relu(self.out(output)))
         return output, hidden
 
 
