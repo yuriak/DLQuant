@@ -73,7 +73,7 @@ class RNNAE(object):
         loss = 0
         encoder_output, encoder_hidden = self.encoder(batch_x, hidden=None)
         decoder_input = torch.ones(batch_x.shape[0], 1, dtype=torch.int64)
-        decoder_hidden = encoder_hidden.detach()
+        decoder_hidden = encoder_hidden
         for i in range(sentence_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.topk(1, dim=-1)
@@ -88,8 +88,11 @@ class RNNAE(object):
         global_step = 0
         for e in range(epoch):
             pointer = 0
+            indices = np.arange(X.shape[0])
+            np.random.shuffle(indices)
+            X_shuffled = X[indices]
             while pointer < X.shape[0]:
-                batch_x = X[pointer:(pointer + batch_size)]
+                batch_x = X_shuffled[pointer:(pointer + batch_size)]
                 max_sentence_length = (batch_x != 0).sum(dim=-1).max()
                 mean_loss = self._train(batch_x, sentence_length=int(max_sentence_length))
                 print(mean_loss, 'batch%:', round((pointer / X.shape[0]) * 100, 4), 'epoch:', e)
