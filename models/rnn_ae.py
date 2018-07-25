@@ -104,10 +104,12 @@ class RNNAE(object):
     def save_model(self, model_path='./RNN_AE'):
         if not os.path.exists(model_path):
             os.mkdir(model_path)
+        print("saving models")
         torch.save(self.encoder, model_path + '/encoder.pkl')
         torch.save(self.decoder, model_path + '/decoder.pkl')
     
     def load_model(self, model_path='./RNN_AE'):
+        print("loading models")
         self.encoder = torch.load(model_path + '/encoder.pkl')
         self.decoder = torch.load(model_path + '/decoder.pkl')
 
