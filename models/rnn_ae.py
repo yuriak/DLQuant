@@ -128,4 +128,4 @@ if __name__ == '__main__':
     results = rnnae.encode(sequence, batch_size=128)
     del sequence
     del weight_matrix
-    np.save('encoded_title', results.detach().numpy())
+    np.save('./output/RNNAE/encoded_title', results.detach().numpy())
