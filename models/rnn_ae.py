@@ -18,14 +18,11 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.hidden_size = hidden_size
         self.embedding = embedding
-        self.fc_1 = nn.Linear(emb_size, hidden_size)
-        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.gru = nn.GRU(emb_size, hidden_size, batch_first=True)
         self.relu = nn.ReLU()
     
     def forward(self, x, hidden):
-        embedded = self.embedding(x)
-        output = embedded
-        output = self.relu(self.fc_1(output))
+        output = self.embedding(x)
         output, hidden = self.gru(output, hidden)
         return output, hidden
 
@@ -35,14 +32,12 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.hidden_size = hidden_size
         self.embedding = embedding
-        self.fc_1 = nn.Linear(emb_size, hidden_size)
-        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.gru = nn.GRU(emb_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, dict_size)
         self.softmax = nn.LogSoftmax(dim=-1)
     
     def forward(self, x, hidden):
         output = self.embedding(x)
-        output = F.relu(self.fc_1(output))
         output, hidden = self.gru(output, hidden)
         output = self.softmax(F.relu(self.out(output)))
         return output, hidden
@@ -73,7 +68,7 @@ class RNNAE(object):
         loss = 0
         encoder_output, encoder_hidden = self.encoder(batch_x, hidden=None)
         decoder_input = torch.ones(batch_x.shape[0], 1, dtype=torch.int64)
-        decoder_hidden = encoder_hidden
+        decoder_hidden = encoder_hidden.detach()
         for i in range(sentence_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.topk(1, dim=-1)
