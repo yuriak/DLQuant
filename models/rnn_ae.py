@@ -68,7 +68,7 @@ class RNNAE(object):
         loss = 0
         encoder_output, encoder_hidden = self.encoder(batch_x, hidden=None)
         decoder_input = torch.ones(batch_x.shape[0], 1, dtype=torch.int64)
-        decoder_hidden = encoder_hidden.detach()
+        decoder_hidden = encoder_hidden
         for i in range(sentence_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.topk(1, dim=-1)
