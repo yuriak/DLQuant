@@ -6,16 +6,18 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import os
+from tensorboardX import SummaryWriter
 
 weight_matrix = torch.tensor(np.load('./data/title_weight_matrix.npy'), dtype=torch.float32)
 sequence = torch.tensor(np.load('./data/title_sequence.npy'), dtype=torch.int64)
+writer = SummaryWriter(log_dir='./logs/RNNAE')
 
 
 class Encoder(nn.Module):
-    def __init__(self, dict_size, emb_size, hidden_size, emb_matrix):
+    def __init__(self, emb_size, hidden_size, embedding):
         super(Encoder, self).__init__()
         self.hidden_size = hidden_size
-        self.embedding = nn.Embedding(dict_size, emb_size, _weight=emb_matrix)
+        self.embedding = embedding
         self.fc_1 = nn.Linear(emb_size, hidden_size)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.relu = nn.ReLU()
@@ -29,10 +31,10 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, hidden_size, emb_size, dict_size, emb_matrix):
+    def __init__(self, hidden_size, emb_size, dict_size, embedding):
         super(Decoder, self).__init__()
         self.hidden_size = hidden_size
-        self.embedding = nn.Embedding(dict_size, emb_size, _weight=emb_matrix)
+        self.embedding = embedding
         self.fc_1 = nn.Linear(emb_size, hidden_size)
         self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
         self.out = nn.Linear(hidden_size, dict_size)
@@ -49,16 +51,18 @@ class Decoder(nn.Module):
 class RNNAE(object):
     def __init__(self, weight_matrix, hidden_size):
         self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(weight_matrix.shape[0],
+                                      weight_matrix.shape[1],
+                                      _weight=torch.tensor(weight_matrix, dtype=torch.float32))
         self.encoder = Encoder(
-            dict_size=weight_matrix.shape[0],
             emb_size=weight_matrix.shape[1],
             hidden_size=hidden_size,
-            emb_matrix=weight_matrix)
+            embedding=self.embedding)
         self.decoder = Decoder(
             dict_size=weight_matrix.shape[0],
             emb_size=weight_matrix.shape[1],
             hidden_size=hidden_size,
-            emb_matrix=torch.tensor(weight_matrix, dtype=torch.float32))
+            embedding=self.embedding)
         self.encoder_optimizer = optim.Adam(self.encoder.parameters(), lr=1e-3)
         self.decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=1e-3)
         self.criterion = nn.NLLLoss()
@@ -69,7 +73,7 @@ class RNNAE(object):
         loss = 0
         encoder_output, encoder_hidden = self.encoder(batch_x, hidden=None)
         decoder_input = torch.ones(batch_x.shape[0], 1, dtype=torch.int64)
-        decoder_hidden = encoder_hidden
+        decoder_hidden = encoder_hidden.detach()
         for i in range(sentence_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.topk(1, dim=-1)
@@ -81,14 +85,17 @@ class RNNAE(object):
         return loss.item() / sentence_length
     
     def train(self, X, batch_size=64, epoch=10):
+        global_step = 0
         for e in range(epoch):
             pointer = 0
             while pointer < X.shape[0]:
                 batch_x = X[pointer:(pointer + batch_size)]
                 max_sentence_length = (batch_x != 0).sum(dim=-1).max()
                 mean_loss = self._train(batch_x, sentence_length=int(max_sentence_length))
-                print(mean_loss, 'batch%:', round((pointer / X.shape[0]) * 100, 2), 'epoch:', e)
+                print(mean_loss, 'batch%:', round((pointer / X.shape[0]) * 100, 4), 'epoch:', e)
                 pointer += batch_size
+                writer.add_scalar(tag='loss', scalar_value=mean_loss, global_step=global_step)
+                global_step += 1
             self.save_model()
     
     def encode(self, X, batch_size=64):
