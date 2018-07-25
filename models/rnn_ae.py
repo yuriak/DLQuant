@@ -85,9 +85,11 @@ class RNNAE(object):
             pointer = 0
             while pointer < X.shape[0]:
                 batch_x = X[pointer:(pointer + batch_size)]
-                mean_loss = self._train(batch_x, sentence_length=X.shape[1])
-                print(mean_loss, round(pointer / X.shape[0], 2))
+                max_sentence_length = (batch_x != 0).sum(dim=-1).max()
+                mean_loss = self._train(batch_x, sentence_length=int(max_sentence_length))
+                print(mean_loss, 'batch%:', round((pointer / X.shape[0]) * 100, 2), 'epoch:', e)
                 pointer += batch_size
+            self.save_model()
     
     def encode(self, X, batch_size=64):
         pointer = 0
@@ -102,12 +104,19 @@ class RNNAE(object):
     def save_model(self, model_path='./RNN_AE'):
         if not os.path.exists(model_path):
             os.mkdir(model_path)
-        torch.save(self.actor, model_path + '/model.pkl')
+        torch.save(self.encoder, model_path + '/encoder.pkl')
+        torch.save(self.decoder, model_path + '/decoder.pkl')
+    
+    def load_model(self, model_path='./RNN_AE'):
+        self.encoder = torch.load(model_path + '/encoder.pkl')
+        self.decoder = torch.load(model_path + '/decoder.pkl')
 
 
 if __name__ == '__main__':
     rnnae = RNNAE(weight_matrix=weight_matrix, hidden_size=50)
-    rnnae.train(X=sequence, batch_size=128, epoch=5)
+    rnnae.train(X=sequence, batch_size=128, epoch=2)
     rnnae.save_model()
-    results = rnnae.encode(sequence, batch_size=256)
+    results = rnnae.encode(sequence, batch_size=128)
+    del sequence
+    del weight_matrix
     np.save('encoded_title', results.detach().numpy())
