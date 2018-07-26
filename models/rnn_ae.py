@@ -66,9 +66,8 @@ class RNNAE(object):
         self.encoder_optimizer.zero_grad()
         self.decoder_optimizer.zero_grad()
         loss = 0
-        encoder_output, encoder_hidden = self.encoder(batch_x, hidden=None)
+        _, decoder_hidden = self.encoder(batch_x, hidden=None)
         decoder_input = torch.ones(batch_x.shape[0], 1, dtype=torch.int64)
-        decoder_hidden = encoder_hidden
         for i in range(sentence_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.topk(1, dim=-1)
@@ -101,7 +100,8 @@ class RNNAE(object):
         results = torch.zeros(1, self.hidden_size)
         while pointer < X.shape[0]:
             batch_x = X[pointer:(pointer + batch_size)]
-            out, hidden = self.encoder(batch_x, hidden=None)
+            max_sentence_length = (batch_x != 0).sum(dim=-1).max()
+            out, hidden = self.encoder(batch_x[:, :max_sentence_length], hidden=None)
             results = torch.cat((results, hidden.squeeze(0)))
             pointer += batch_size
         return results[1:]
