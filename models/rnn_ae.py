@@ -97,14 +97,14 @@ class RNNAE(object):
     
     def encode(self, X, batch_size=64):
         pointer = 0
-        results = torch.zeros(1, self.hidden_size)
+        results_ = np.zeros((1, self.hidden_size))
         while pointer < X.shape[0]:
             batch_x = X[pointer:(pointer + batch_size)]
             max_sentence_length = (batch_x != 0).sum(dim=-1).max()
             out, hidden = self.encoder(batch_x[:, :max_sentence_length], hidden=None)
-            results = torch.cat((results, hidden.squeeze(0)))
+            results_ = np.concatenate((results_, hidden.squeeze(0).detach().numpy()))
             pointer += batch_size
-        return results[1:]
+        return results_[1:]
     
     def save_model(self, model_path='./RNN_AE'):
         if not os.path.exists(model_path):
@@ -126,4 +126,4 @@ if __name__ == '__main__':
     results = rnnae.encode(sequence, batch_size=128)
     del sequence
     del weight_matrix
-    np.save('./output/RNNAE/encoded_title', results.detach().numpy())
+    np.save('./output/RNNAE/encoded_title', results)
