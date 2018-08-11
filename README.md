@@ -25,9 +25,12 @@ This repository is the preliminary work of [RLQuant](https://github.com/yuriak/R
     - OpenIE (Information Extraction) for extracting Events(subject, predicate, object)
     - Neural Tensor Network for learning Event Embedding
     - DNN, CNN can be used to predict movements
-- [RNN Auto-encoder for encoding news titles]
+- RNN Auto-encoder for encoding news titles
     - A sequence 2 sequence AE
     - GRU was used
+- [Elmo](https://arxiv.org/abs/1802.05365)
+    - Using Elmo for news title encoding
+    - please find tf version in [Paper_Review](https://github.com/QuantumAgent/Paper_Review)
     
 You can use these code to build your experiment data-source. All the data will be stored in MongoDB by default in my code, you can extend the storage part by yourself.  
 Most of the code was developed before 2018, after that I turned over to the reinforcement learning approach [(RLQuant)](https://github.com/yuriak/RLQuant) and almost gave up the predictive models, therefore I cannot guarantee all the code works well here. If you find any bugs, please tell me. 
