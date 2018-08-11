@@ -37,8 +37,6 @@ class DNNClassifier(object):
         batch_x = torch.tensor(X)
         batch_y = torch.tensor(y)
         instance_num = batch_y.shape[0]
-        if instance_num > 1:
-            batch_x = (batch_x - batch_x.mean(dim=1, keepdim=True)) / batch_x.std(dim=1, keepdim=True)
         self.optimizer.zero_grad()
         y_hat = self.dnn(batch_x)
         loss = self.loss_func(y_hat, batch_y)
@@ -54,8 +52,6 @@ class DNNClassifier(object):
         batch_x = torch.tensor(X)
         batch_y = torch.tensor(y)
         instance_num = batch_y.shape[0]
-        if instance_num > 1:
-            batch_x = (batch_x - batch_x.mean(dim=1, keepdim=True)) / batch_x.std(dim=1, keepdim=True)
         y_hat = self.dnn(batch_x).detach()
         loss = self.loss_func(y_hat, batch_y)
         topv, topi = y_hat.topk(1)
