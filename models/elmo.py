@@ -8,6 +8,7 @@ from tensorboardX import SummaryWriter
 import os
 import pickle
 
+lmap = lambda func, it: list(map(lambda x: func(x), it))
 writer = SummaryWriter(log_dir='./logs/ELMO')
 
 
@@ -93,13 +94,21 @@ class Elmo(object):
         encode_result = torch.cat([hns, hcs], dim=-1)
         return encode_result.detach().numpy()
     
-    def encode(self, X, batch_size=64, gamma=1):
+    def encode(self, corpus, batch_size=64, gamma=1):
+        encoding_corpus = corpus.copy()
+        corpus_size = len(encoding_corpus)
         pointer = 0
         results_ = np.zeros((1, self.hidden_size * 4))
-        while pointer < X.shape[0]:
-            batch_x = X[pointer:(pointer + batch_size)]
+        while pointer < corpus_size:
+            batch_corpus = encoding_corpus[pointer:(pointer + batch_size)]
+            batch_tokens = lmap(lambda x: x[0], batch_corpus)
+            batch_chars = lmap(lambda x: x[1], batch_corpus)
+            max_char_length = max(lmap(lambda y: max(lmap(lambda x: len(x), y)), batch_chars))
+            max_token_length = max(lmap(lambda x: len(x), batch_tokens))
+            batch_x = Elmo.pad_chars(batch_chars=batch_chars, max_char_length=max_char_length, max_token_length=max_token_length)
             result_batch = self._encode(batch_x, gamma=gamma)
             results_ = np.concatenate((results_, result_batch))
+            print('encoding batch%:', round((pointer / corpus_size) * 100, 4))
             pointer += batch_size
         return results_[1:]
     
@@ -121,23 +130,56 @@ class Elmo(object):
         self.optimizer.step()
         return loss.item()
     
-    def train(self, X, y, batch_size=64, epoch=2):
+    def train(self, corpus, batch_size=64, epoch=2):
         global_step = 0
+        training_corpus = corpus.copy()
+        corpus_size = len(training_corpus)
         for e in range(epoch):
             pointer = 0
-            indices = np.arange(X.shape[0])
-            np.random.shuffle(indices)
-            X_shuffled = X[indices]
-            y_shuffled = y[indices]
-            while pointer < X.shape[0]:
-                batch_x = X_shuffled[pointer:(pointer + batch_size)]
-                batch_y = y_shuffled[pointer:(pointer + batch_size)]
+            np.random.shuffle(training_corpus)
+            while pointer < corpus_size:
+                batch_corpus = training_corpus[pointer:(pointer + batch_size)]
+                batch_tokens = lmap(lambda x: x[0], batch_corpus)
+                batch_chars = lmap(lambda x: x[1], batch_corpus)
+                max_char_length = max(lmap(lambda y: max(lmap(lambda x: len(x), y)), batch_chars))
+                max_token_length = max(lmap(lambda x: len(x), batch_tokens))
+                batch_x = Elmo.pad_chars(batch_chars=batch_chars, max_char_length=max_char_length, max_token_length=max_token_length)
+                batch_y = Elmo.pad_tokens(batch_tokens=batch_tokens, max_token_length=max_token_length)
                 mean_loss = self._train(batch_x, batch_y)
-                print(mean_loss, 'batch%:', round((pointer / X.shape[0]) * 100, 4), 'epoch:', e)
+                print(mean_loss, 'batch%:', round((pointer / corpus_size) * 100, 4), 'epoch:', e)
                 pointer += batch_size
                 writer.add_scalar(tag='loss', scalar_value=mean_loss, global_step=global_step)
                 global_step += 1
             self.save_model()
+    
+    @staticmethod
+    def pad_chars(batch_chars, max_char_length, max_token_length):
+        padded_chars = []
+        for s in batch_chars:
+            padded_tokens = []
+            for w in s:
+                padded_tokens.append(Elmo.pad(indices=w, max_leng=max_char_length))
+            if len(s) < max_token_length:
+                pad_leng = max_token_length - len(s)
+                padded_tokens = padded_tokens + ([[0] * max_char_length] * pad_leng)
+            padded_chars.append(padded_tokens)
+        return np.array(padded_chars)
+    
+    @staticmethod
+    def pad(indices, max_leng):
+        if len(indices) > max_leng:
+            return indices[:max_leng]
+        pad_leng = max_leng - len(indices)
+        indices = indices + [0] * pad_leng
+        assert len(indices) == max_leng
+        return indices
+    
+    @staticmethod
+    def pad_tokens(batch_tokens, max_token_length):
+        padded_tokens = []
+        for tokens in batch_tokens:
+            padded_tokens.append(Elmo.pad(tokens, max_token_length))
+        return np.array(padded_tokens)
     
     def save_model(self, model_path='./ELMO'):
         if not os.path.exists(model_path):
@@ -157,12 +199,14 @@ if __name__ == '__main__':
         vocabulary = pickle.load(f)
     with open('./data/characters.pkl', 'rb') as f:
         characters = pickle.load(f)
-    corpus_tokens = np.load('./data/corpus_tokens.npy')
-    corpus_chars = np.load('./data/corpus_chars.npy')
-    assert corpus_chars.shape[0] == corpus_tokens.shape[0]
+    with open('./data/corpus.pkl', 'rb') as f:
+        data = pickle.load(f)
+    # corpus_tokens = np.load('./data/corpus_tokens.npy')
+    # corpus_chars = np.load('./data/corpus_chars.npy')
+    # assert corpus_chars.shape[0] == corpus_tokens.shape[0]
     onehot = np.eye(len(characters))
     onehot[0, 0] = 0
     elmo = Elmo(weight_matrix=onehot, word_number=len(vocabulary), learning_rate=1e-3)
-    elmo.train(X=corpus_chars, y=corpus_tokens, batch_size=128, epoch=2)
-    results = elmo.encode(X=corpus_chars, batch_size=64, gamma=1)
+    elmo.train(corpus=data, batch_size=128, epoch=2)
+    results = elmo.encode(corpus=data, batch_size=64, gamma=1)
     np.save('data/encoded_title_elmo', results)
