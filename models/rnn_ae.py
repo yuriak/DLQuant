@@ -58,24 +58,21 @@ class RNNAE(object):
             emb_size=weight_matrix.shape[1],
             hidden_size=hidden_size,
             embedding=self.embedding)
-        self.encoder_optimizer = optim.Adam(self.encoder.parameters(), lr=1e-3)
-        self.decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=1e-3)
+        self.optimizer = optim.Adam(list(self.encoder.parameters())+list(self.decoder.parameters()), lr=1e-3)
         self.criterion = nn.NLLLoss()
     
     def _train(self, batch_x, sentence_length):
-        self.encoder_optimizer.zero_grad()
-        self.decoder_optimizer.zero_grad()
+        self.optimizer.zero_grad()
         loss = 0
         _, decoder_hidden = self.encoder(batch_x, hidden=None)
         decoder_input = torch.ones(batch_x.shape[0], 1, dtype=torch.int64)
-        for i in range(sentence_length):
+        for i in range(1, sentence_length):
             decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
             topv, topi = decoder_output.topk(1, dim=-1)
             decoder_input = topi.squeeze(-1).detach()
             loss += self.criterion(decoder_output.squeeze(1), batch_x[:, i])
         loss.backward()
-        self.encoder_optimizer.step()
-        self.decoder_optimizer.step()
+        self.optimizer.step()
         return loss.item() / sentence_length
     
     def train(self, X, batch_size=64, epoch=10):
@@ -97,14 +94,15 @@ class RNNAE(object):
     
     def encode(self, X, batch_size=64):
         pointer = 0
-        results_ = np.zeros((1, self.hidden_size))
+        results_=[]
+        # results_ = np.zeros((1, self.hidden_size))
         while pointer < X.shape[0]:
             batch_x = X[pointer:(pointer + batch_size)]
             max_sentence_length = (batch_x != 0).sum(dim=-1).max()
             out, hidden = self.encoder(batch_x[:, :max_sentence_length], hidden=None)
-            results_ = np.concatenate((results_, hidden.squeeze(0).detach().numpy()))
+            results_.append(hidden.squeeze(0).detach().numpy())
             pointer += batch_size
-        return results_[1:]
+        return np.concatenate(results_)
     
     def save_model(self, model_path='./RNN_AE'):
         if not os.path.exists(model_path):
