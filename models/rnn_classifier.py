@@ -26,10 +26,10 @@ class RNN(nn.Module):
     def forward(self, x, hidden):
         x_in, hidden = self.rnn(x, hidden)
         output = x_in
-        for hidden, lm in zip(self.hiddens, self.lms):
-            output = self.dropout(lm(F.leaky_relu(hidden(output))))
+        for hl, lm in zip(self.hiddens, self.lms):
+            output = self.dropout(lm(F.leaky_relu(hl(output))))
         output = self.f_out(x_in + output)
-        return output
+        return output, hidden
 
 
 class RNNClassifier(object):
@@ -58,13 +58,17 @@ class RNNClassifier(object):
         self.rnn.train(True)
         self.optimizer.zero_grad()
         y_hat, self.tmp_hidden = self.rnn(x, hidden=self.tmp_hidden)
+        y_hat=y_hat.squeeze(0)
         loss = self.loss_func(y_hat, y_true)
         loss.backward()
         clip_grad_norm_(self.rnn.parameters(), 1)
         self.optimizer.step()
         topv, topi = y_hat.topk(1)
         y_hat = topi.view(-1).detach()
-        self.tmp_hidden = self.tmp_hidden.detach()
+        if type(self.tmp_hidden) == tuple:
+            self.tmp_hidden = tuple([h.detach() for h in self.tmp_hidden])
+        else:
+            self.tmp_hidden= self.tmp_hidden.detach()
         acc = sklearn.metrics.accuracy_score(y_true=y.flatten(), y_pred=y_hat)
         mcc = sklearn.metrics.matthews_corrcoef(y_true=y.flatten(), y_pred=y_hat)
         return loss.item(), acc, mcc, y_hat.numpy().flatten()
@@ -89,3 +93,11 @@ class RNNClassifier(object):
             y_hat, self.tmp_hidden = self.rnn(x, hidden=self.tmp_hidden)
             y_hat = y_hat.topk(1)[1].view(-1)
             return y_hat.numpy().flatten()
+    
+    def load_model(self, model_path='./RNNModel'):
+        self.rnn = torch.load(model_path + '/model.pkl')
+    
+    def save_model(self, model_path='./RNNModel'):
+        if not os.path.exists(model_path):
+            os.mkdir(model_path)
+        torch.save(self.rnn, model_path + '/model.pkl')

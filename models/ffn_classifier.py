@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
 import torch.nn.functional as F
 import numpy as np
-import sklearn
+from sklearn.metrics import accuracy_score, matthews_corrcoef
 import os
 
 
@@ -49,8 +49,8 @@ class FFNClassifier(object):
         self.optimizer.step()
         topv, topi = y_hat.topk(1)
         y_hat = topi.view(-1).detach()
-        acc = sklearn.metrics.accuracy_score(y_true=y.flatten(), y_pred=y_hat)
-        mcc = sklearn.metrics.matthews_corrcoef(y_true=y.flatten(), y_pred=y_hat)
+        acc = accuracy_score(y_true=y.flatten(), y_pred=y_hat)
+        mcc = matthews_corrcoef(y_true=y.flatten(), y_pred=y_hat)
         return loss.item(), acc, mcc, y_hat
     
     def test(self, X, y):
@@ -61,8 +61,8 @@ class FFNClassifier(object):
             loss = self.loss_func(y_hat, y_true).mean()
             topv, topi = y_hat.topk(1)
             y_hat = topi.view(-1).detach()
-            acc = sklearn.metrics.accuracy_score(y_true=y.flatten(), y_pred=y_hat)
-            mcc = sklearn.metrics.matthews_corrcoef(y_true=y.flatten(), y_pred=y_hat)
+            acc = accuracy_score(y_true=y.flatten(), y_pred=y_hat)
+            mcc = matthews_corrcoef(y_true=y.flatten(), y_pred=y_hat)
             return loss.item(), acc, mcc, y_hat
     
     def inference(self, X):
@@ -72,3 +72,11 @@ class FFNClassifier(object):
             topv, topi = y_hat.topk(1)
             y_hat = topi.view(-1).detach()
             return y_hat
+
+    def load_model(self, model_path='./FFNModel'):
+        self.ffn = torch.load(model_path + '/model.pkl')
+
+    def save_model(self, model_path='./FFNModel'):
+        if not os.path.exists(model_path):
+            os.mkdir(model_path)
+        torch.save(self.ffn, model_path + '/model.pkl')
