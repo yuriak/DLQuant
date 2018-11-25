@@ -37,7 +37,8 @@ class AttnRNN(nn.Module):
         super(AttnRNN, self).__init__()
         self.temporal = temporal
         self.dropout = nn.Dropout(p=dp)
-        self.attn = Attention(d_x, d_h, temporal=self.temporal)
+        self.f_in = nn.Linear(in_features=d_x,out_features=d_h)
+        self.attn = Attention(d_h, d_h, temporal=self.temporal)
         self.rnn = cell(input_size=d_h, hidden_size=d_h, num_layers=rnn_layers, batch_first=True, dropout=dp)
         self.hls = nn.ModuleList([nn.Linear(in_features=d_h, out_features=d_h) for _ in range(ffn_layers)])
         self.lms = nn.ModuleList([nn.LayerNorm(d_h) for _ in range(ffn_layers)])
@@ -47,6 +48,7 @@ class AttnRNN(nn.Module):
                 nn.init.xavier_uniform_(p)
     
     def forward(self, x_t, hidden):
+        x_t=self.f_in(x_t)
         if self.temporal and hidden is not None:
             if type(hidden) == tuple:
                 h_t_1 = hidden[0]
@@ -68,7 +70,8 @@ class AttnRNN(nn.Module):
 class AttnFFN(nn.Module):
     def __init__(self, d_x, d_h, d_o, ffn_layers=5, dp=0.5):
         super(AttnFFN, self).__init__()
-        self.attn = Attention(d_x, d_h, temporal=False)
+        self.f_in = nn.Linear(in_features=d_x,out_features=d_h)
+        self.attn = Attention(d_h, d_h, temporal=False)
         self.hiddens = nn.ModuleList([nn.Linear(in_features=d_h, out_features=d_h) for _ in range(ffn_layers)])
         self.lms = nn.ModuleList([nn.LayerNorm(d_h) for _ in range(ffn_layers)])
         self.f_out = nn.Linear(in_features=d_h, out_features=d_o)
@@ -76,11 +79,12 @@ class AttnFFN(nn.Module):
     
     def forward(self, x_t, hidden=None):
         # use hidden here for compatible
-        o_t, e_t = self.self.attn(x_t)
-        o_t_initital = o_t
+        o_t=self.f_in(x_t)
+        o_t, e_t = self.attn(o_t)
+        o_t_initial = o_t
         for hl, lm in zip(self.hiddens, self.lms):
             o_t = self.dropout(lm(F.leaky_relu(hl(o_t))))
-        o_t = self.f_out(o_t + o_t_initital)
+        o_t = self.f_out(o_t + o_t_initial)
         return o_t, hidden, e_t
 
 
@@ -122,8 +126,10 @@ class AttentionClassifier(object):
         y_hat = np.array(y_hats)
         if type(self.tmp_hidden) == tuple:
             self.tmp_hidden = tuple([h.detach() for h in self.tmp_hidden])
-        else:
+        elif type(self.tmp_hidden) == torch.Tensor:
             self.tmp_hidden = self.tmp_hidden.detach()
+        else:
+            self.tmp_hidden = None
         acc = accuracy_score(y_true=y.flatten(), y_pred=y_hat)
         mcc = matthews_corrcoef(y_true=y.flatten(), y_pred=y_hat)
         return loss.item(), acc, mcc, y_hat, attns
