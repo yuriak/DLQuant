@@ -79,7 +79,7 @@ class RNNClassifier(object):
             x = torch.tensor(X[None, :, :], dtype=torch.float32)
             y_true = torch.tensor(y, dtype=torch.long)
             y_hat, self.tmp_hidden = self.rnn(x, hidden=self.tmp_hidden)
-            y_hat=y_hat.squeeze(0)
+            y_hat = y_hat.squeeze(0)
             loss = self.loss_func(y_hat, y_true)
             topv, topi = y_hat.topk(1)
             y_hat = topi.view(-1)
@@ -92,7 +92,7 @@ class RNNClassifier(object):
         with torch.no_grad():
             x = torch.tensor(X[None, :, :], dtype=torch.float32)
             y_hat, self.tmp_hidden = self.rnn(x, hidden=self.tmp_hidden)
-            y_hat=y_hat.squeeze(0)
+            y_hat = y_hat.squeeze(0)
             y_hat = y_hat.topk(1)[1].view(-1)
             return y_hat.numpy().flatten()
     
