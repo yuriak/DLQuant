@@ -14,7 +14,7 @@ class FFN(nn.Module):
     def __init__(self, d_x, d_h, d_o, ffn_layers=5, dp=0.5):
         super(FFN, self).__init__()
         self.f_in = nn.Linear(in_features=d_x, out_features=d_h)
-        self.hiddens = nn.ModuleList([nn.Linear(in_features=d_x, out_features=d_h) for _ in range(ffn_layers)])
+        self.hiddens = nn.ModuleList([nn.Linear(in_features=d_h, out_features=d_h) for _ in range(ffn_layers)])
         self.lms = nn.ModuleList([nn.LayerNorm(d_h) for _ in range(ffn_layers)])
         self.f_out = nn.Linear(in_features=d_h, out_features=d_o)
         self.dropout = nn.Dropout(p=dp)
@@ -22,8 +22,8 @@ class FFN(nn.Module):
     def forward(self, x):
         x_in = self.dropout(self.f_in(x))
         output = x_in
-        for hidden, lm in zip(self.hiddens, self.lms):
-            output = self.dropout(lm(F.leaky_relu(hidden(output))))
+        for hl, lm in zip(self.hiddens, self.lms):
+            output = self.dropout(lm(F.leaky_relu(hl(output))))
         output = self.f_out(x_in + output)
         return output
 

@@ -15,7 +15,7 @@ class RNN(nn.Module):
         super(RNN, self).__init__()
         self.dropout = nn.Dropout(p=dp)
         self.rnn_layers = rnn_layers
-        self.rnn = cell(input_size=d_h, hidden_size=d_h, num_layers=rnn_layers, batch_first=True, dropout=dp)
+        self.rnn = cell(input_size=d_x, hidden_size=d_h, num_layers=rnn_layers, batch_first=True, dropout=dp)
         self.hiddens = nn.ModuleList([nn.Linear(in_features=d_h, out_features=d_h) for _ in range(ffn_layers)])
         self.lms = nn.ModuleList([nn.LayerNorm(d_h) for _ in range(ffn_layers)])
         self.f_out = nn.Linear(in_features=d_h, out_features=d_o)
@@ -79,6 +79,7 @@ class RNNClassifier(object):
             x = torch.tensor(X[None, :, :], dtype=torch.float32)
             y_true = torch.tensor(y, dtype=torch.long)
             y_hat, self.tmp_hidden = self.rnn(x, hidden=self.tmp_hidden)
+            y_hat=y_hat.squeeze(0)
             loss = self.loss_func(y_hat, y_true)
             topv, topi = y_hat.topk(1)
             y_hat = topi.view(-1)
@@ -91,6 +92,7 @@ class RNNClassifier(object):
         with torch.no_grad():
             x = torch.tensor(X[None, :, :], dtype=torch.float32)
             y_hat, self.tmp_hidden = self.rnn(x, hidden=self.tmp_hidden)
+            y_hat=y_hat.squeeze(0)
             y_hat = y_hat.topk(1)[1].view(-1)
             return y_hat.numpy().flatten()
     
