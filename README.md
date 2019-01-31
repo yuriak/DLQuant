@@ -33,4 +33,7 @@ This repository is the preliminary work of [RLQuant](https://github.com/yuriak/R
     - please find tf version in [Paper_Review](https://github.com/QuantumAgent/Paper_Review)
     
 You can use these code to build your experiment data-source. All the data will be stored in MongoDB by default in my code, you can extend the storage part by yourself.  
-Most of the code was developed before 2018, after that I turned over to the reinforcement learning approach [(RLQuant)](https://github.com/yuriak/RLQuant) and almost gave up the predictive models, therefore I cannot guarantee all the code works well here. If you find any bugs, please tell me. 
+Most of the code was developed before 2018, after that I turned over to the reinforcement learning approach [(RLQuant)](https://github.com/yuriak/RLQuant) and almost gave up the predictive models, therefore I cannot guarantee all the code works well here. If you find any bugs, please tell me.
+
+## Data
+[News](https://drive.google.com/open?id=1DJsEsrsSRIvc5f9YhIaJ2xP5iy4AAxXz)
